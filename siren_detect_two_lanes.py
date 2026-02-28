@@ -1,3 +1,5 @@
+# siren_detect_two_lanes.py
+
 import spidev
 import time
 from datetime import datetime
@@ -9,12 +11,15 @@ spi.max_speed_hz = 1350000
 
 # ================= CONFIG =================
 THRESHOLD = 600
-CHECK_INTERVAL = 0.2
+CONFIRM_CYCLES = 3   # prevent false trigger
 
+# ================= STATE VARIABLES =================
 sensor1_time = None
 sensor2_time = None
+sensor1_confirm = 0
+sensor2_confirm = 0
 
-# ================= FUNCTIONS =================
+# ================= LOW LEVEL READ =================
 
 def read_channel(channel):
     adc = spi.xfer2([1, (8 + channel) << 4, 0])
@@ -25,9 +30,14 @@ def read_average(channel, samples=5):
     total = 0
     for _ in range(samples):
         total += read_channel(channel)
+        time.sleep(0.002)
     return total // samples
 
 def get_vehicle_count(lane_number):
+    """
+    Optional: used only if both lanes trigger at same exact time.
+    Reads a file format like: lane1,7
+    """
     try:
         with open("/home/pi/Desktop/traffic_result.txt", "r") as f:
             data = f.read().strip()
@@ -36,39 +46,56 @@ def get_vehicle_count(lane_number):
     except:
         return 0
 
-# ================= MAIN LOOP =================
+# ================= MAIN CHECK FUNCTION =================
 
-print("Monitoring for Emergency Sirens...")
+def check_emergency():
+    """
+    Call this function repeatedly from main.py.
+    Returns:
+        {
+            "status": True/False,
+            "priority_lane": "lane1" or "lane2" or None
+        }
+    """
 
-while True:
+    global sensor1_time, sensor2_time
+    global sensor1_confirm, sensor2_confirm
 
     sensor1 = read_average(0)
     sensor2 = read_average(1)
 
     current_time = datetime.now()
 
-    # Detect Sensor 1
-    if sensor1 > THRESHOLD and sensor1_time is None:
-        sensor1_time = current_time
-        print("Emergency detected on Lane 1 at", sensor1_time)
+    # ---------------- Sensor 1 ----------------
+    if sensor1 > THRESHOLD:
+        sensor1_confirm += 1
+        if sensor1_confirm >= CONFIRM_CYCLES and sensor1_time is None:
+            sensor1_time = current_time
+            print("🚨 Emergency detected on Lane 1")
+    else:
+        sensor1_confirm = 0
 
-    # Detect Sensor 2
-    if sensor2 > THRESHOLD and sensor2_time is None:
-        sensor2_time = current_time
-        print("Emergency detected on Lane 2 at", sensor2_time)
+    # ---------------- Sensor 2 ----------------
+    if sensor2 > THRESHOLD:
+        sensor2_confirm += 1
+        if sensor2_confirm >= CONFIRM_CYCLES and sensor2_time is None:
+            sensor2_time = current_time
+            print("🚨 Emergency detected on Lane 2")
+    else:
+        sensor2_confirm = 0
 
-    # If any emergency detected
+    # ---------------- Decision Logic ----------------
     if sensor1_time or sensor2_time:
 
-        # Only Lane 1 detected
+        # Only lane 1
         if sensor1_time and not sensor2_time:
             priority_lane = 1
 
-        # Only Lane 2 detected
+        # Only lane 2
         elif sensor2_time and not sensor1_time:
             priority_lane = 2
 
-        # Both detected
+        # Both lanes
         else:
             if sensor1_time < sensor2_time:
                 priority_lane = 1
@@ -78,20 +105,18 @@ while True:
                 # Same timestamp → compare vehicle count
                 v1 = get_vehicle_count(1)
                 v2 = get_vehicle_count(2)
+                priority_lane = 1 if v1 < v2 else 2
 
-                if v1 < v2:
-                    priority_lane = 1
-                else:
-                    priority_lane = 2
-
-        print(f"Priority given to Lane {priority_lane}")
-
-        # Reset after handling
+        # Reset detection after decision
         sensor1_time = None
         sensor2_time = None
 
-        # Here you call your traffic control logic
-        # Example:
-        # set_green(priority_lane)
+        return {
+            "status": True,
+            "priority_lane": f"lane{priority_lane}"
+        }
 
-    time.sleep(CHECK_INTERVAL)
+    return {
+        "status": False,
+        "priority_lane": None
+    }

@@ -1,117 +1,31 @@
-from gpiozero import LED
+# traffic_logic.py
+
 import time
 
-RESULT_FILE = "/home/pi/Desktop/traffic_result.txt"
+def set_green(lane):
+    print(f"🟢 GREEN ON: Lane {lane}")
 
-# ================= GPIO =================
-road1_red = LED(26)
-road1_yellow = LED(19)
-road1_green = LED(13)
+def transition_to_yellow(lane):
+    print(f"🟡 YELLOW ON: Lane {lane}")
 
-road2_red = LED(21)
-road2_yellow = LED(20)
-road2_green = LED(16)
+def set_red(lane):
+    print(f"🔴 RED ON: Lane {lane}")
 
-road3_red = LED(12)
-road3_yellow = LED(6)
-road3_green = LED(5)
+def run_traffic_cycle(lane_counts):
+    if not lane_counts:
+        print("No lane data received.")
+        return
 
-road4_red = LED(25)
-road4_yellow = LED(24)
-road4_green = LED(23)
+    # Pick lane with highest vehicles
+    priority_lane = max(lane_counts, key=lane_counts.get)
 
-yellow_time = 3
+    print("\n🚦 Normal Traffic Cycle")
+    print(f"Priority Lane: {priority_lane}")
 
-def calculate_green_time(vehicle_count):
-    if vehicle_count >= 6:
-        return 35
-    elif 3 <= vehicle_count <= 5:
-        return 15
-    elif 1 <= vehicle_count <= 2:
-        return 5
-    else:
-        return 0
+    set_green(priority_lane)
+    time.sleep(10)
 
-def all_red():
-    road1_red.on()
-    road2_red.on()
-    road3_red.on()
-    road4_red.on()
+    transition_to_yellow(priority_lane)
+    time.sleep(3)
 
-    road1_green.off()
-    road2_green.off()
-    road3_green.off()
-    road4_green.off()
-
-def set_green(road):
-    all_red()
-
-    if road == 1:
-        road1_red.off()
-        road1_green.on()
-
-    elif road == 2:
-        road2_red.off()
-        road2_green.on()
-
-    elif road == 3:
-        road3_red.off()
-        road3_green.on()
-
-    elif road == 4:
-        road4_red.off()
-        road4_green.on()
-
-def green_to_yellow(road):
-    if road == 1:
-        road1_green.off()
-        road1_yellow.on()
-        time.sleep(yellow_time)
-        road1_yellow.off()
-        road1_red.on()
-
-    elif road == 2:
-        road2_green.off()
-        road2_yellow.on()
-        time.sleep(yellow_time)
-        road2_yellow.off()
-        road2_red.on()
-
-    elif road == 3:
-        road3_green.off()
-        road3_yellow.on()
-        time.sleep(yellow_time)
-        road3_yellow.off()
-        road3_red.on()
-
-    elif road == 4:
-        road4_green.off()
-        road4_yellow.on()
-        time.sleep(yellow_time)
-        road4_yellow.off()
-        road4_red.on()
-
-# ================= AUTO EXECUTION =================
-
-try:
-    with open(RESULT_FILE, "r") as f:
-        data = f.read().strip()
-
-    lane_name, vehicle_count = data.split(",")
-    vehicle_count = int(vehicle_count)
-
-    road_number = int(lane_name.replace("lane", ""))
-
-    green_time = calculate_green_time(vehicle_count)
-
-    if green_time == 0:
-        print("No vehicles. All signals RED.")
-        all_red()
-    else:
-        print(f"Road {road_number} GREEN for {green_time} seconds")
-        set_green(road_number)
-        time.sleep(green_time)
-        green_to_yellow(road_number)
-
-except FileNotFoundError:
-    print("Result file not found. Run analyze script first.")
+    set_red(priority_lane)
