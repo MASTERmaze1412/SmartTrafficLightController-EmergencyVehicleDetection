@@ -65,6 +65,12 @@ SmartTrafficLightController-EmergencyVehicleDetection/
 - `siren_detect_one_lane.py` — Standalone single-lane audio detection.
 - `siren_detect_two_lanes.py` — Two-lane audio detection interface used by the main controller.
 
+### Used Module / Prototype
+<img width="328" height="434" alt="Image" src="https://github.com/user-attachments/assets/c621352d-3ba7-4708-960d-e23544ab7655" />
+<img width="328" height="434" alt="Image" src="https://github.com/user-attachments/assets/9e565ab4-71e0-48aa-8035-3212527ad435" />
+<img width="1043" height="644" alt="Image" src="https://github.com/user-attachments/assets/34129936-ade5-4b45-a05f-813ecb3aa551" />
+<img width="437" height="463" alt="Image" src="https://github.com/user-attachments/assets/12b4ab9f-15e1-4aac-8678-63cf61454cb2" />
+
 ### 📱 Running the Project
 
 **Prerequisites**
